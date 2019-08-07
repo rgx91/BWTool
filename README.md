@@ -14,3 +14,7 @@
  - blockchain parser tab
  - more address related helpers
  
+ You can download a test address txt file here with 24+ million distinct addresses:
+ 
+ https://drive.google.com/file/d/1oJ-EMLcOghgMIpwgQKjuzYorKMD1SjqH/view?usp=sharing
+ 
