@@ -31,6 +31,12 @@
             this.components = new System.ComponentModel.Container();
             this.ToolChoosingTabcontrol = new System.Windows.Forms.TabControl();
             this.BrainWalletTab = new System.Windows.Forms.TabPage();
+            this.RandomStringGroupBox = new System.Windows.Forms.GroupBox();
+            this.CharsetRandomLabel = new System.Windows.Forms.Label();
+            this.CharSetTextBox = new System.Windows.Forms.TextBox();
+            this.RandomLabel = new System.Windows.Forms.Label();
+            this.CountOfCharsUpDown = new System.Windows.Forms.NumericUpDown();
+            this.UseRandomCheckBox = new System.Windows.Forms.CheckBox();
             this.OptionsGroupBox = new System.Windows.Forms.GroupBox();
             this.SeparatorTextBox = new System.Windows.Forms.TextBox();
             this.sha256Label = new System.Windows.Forms.Label();
@@ -47,12 +53,14 @@
             this.ProgressLabel = new System.Windows.Forms.ToolStripLabel();
             this.MiningProgressBar = new System.Windows.Forms.ToolStripProgressBar();
             this.tabPage2 = new System.Windows.Forms.TabPage();
+            this.label1 = new System.Windows.Forms.Label();
             this.PasswordListOpenFileDialog = new System.Windows.Forms.OpenFileDialog();
             this.AddressOpenFileDialog = new System.Windows.Forms.OpenFileDialog();
             this.MinerInfoUpdateTimer = new System.Windows.Forms.Timer(this.components);
-            this.label1 = new System.Windows.Forms.Label();
             this.ToolChoosingTabcontrol.SuspendLayout();
             this.BrainWalletTab.SuspendLayout();
+            this.RandomStringGroupBox.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.CountOfCharsUpDown)).BeginInit();
             this.OptionsGroupBox.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.Sha256NumericUpDown)).BeginInit();
             this.TextSelectGroupBox.SuspendLayout();
@@ -73,6 +81,7 @@
             // 
             // BrainWalletTab
             // 
+            this.BrainWalletTab.Controls.Add(this.RandomStringGroupBox);
             this.BrainWalletTab.Controls.Add(this.OptionsGroupBox);
             this.BrainWalletTab.Controls.Add(this.MiningStartButton);
             this.BrainWalletTab.Controls.Add(this.TextSelectGroupBox);
@@ -86,6 +95,77 @@
             this.BrainWalletTab.Text = "Brainwallet Mining";
             this.BrainWalletTab.UseVisualStyleBackColor = true;
             // 
+            // RandomStringGroupBox
+            // 
+            this.RandomStringGroupBox.Controls.Add(this.CharsetRandomLabel);
+            this.RandomStringGroupBox.Controls.Add(this.CharSetTextBox);
+            this.RandomStringGroupBox.Controls.Add(this.RandomLabel);
+            this.RandomStringGroupBox.Controls.Add(this.CountOfCharsUpDown);
+            this.RandomStringGroupBox.Controls.Add(this.UseRandomCheckBox);
+            this.RandomStringGroupBox.Location = new System.Drawing.Point(775, 31);
+            this.RandomStringGroupBox.Name = "RandomStringGroupBox";
+            this.RandomStringGroupBox.Size = new System.Drawing.Size(330, 131);
+            this.RandomStringGroupBox.TabIndex = 16;
+            this.RandomStringGroupBox.TabStop = false;
+            this.RandomStringGroupBox.Text = "Random string mining";
+            // 
+            // CharsetRandomLabel
+            // 
+            this.CharsetRandomLabel.AutoSize = true;
+            this.CharsetRandomLabel.Location = new System.Drawing.Point(6, 65);
+            this.CharsetRandomLabel.Name = "CharsetRandomLabel";
+            this.CharsetRandomLabel.Size = new System.Drawing.Size(134, 13);
+            this.CharsetRandomLabel.TabIndex = 4;
+            this.CharsetRandomLabel.Text = "Using user Selected chars:";
+            // 
+            // CharSetTextBox
+            // 
+            this.CharSetTextBox.Location = new System.Drawing.Point(6, 84);
+            this.CharSetTextBox.Name = "CharSetTextBox";
+            this.CharSetTextBox.Size = new System.Drawing.Size(287, 20);
+            this.CharSetTextBox.TabIndex = 3;
+            // 
+            // RandomLabel
+            // 
+            this.RandomLabel.AutoSize = true;
+            this.RandomLabel.Location = new System.Drawing.Point(142, 33);
+            this.RandomLabel.Name = "RandomLabel";
+            this.RandomLabel.Size = new System.Drawing.Size(62, 13);
+            this.RandomLabel.TabIndex = 2;
+            this.RandomLabel.Text = "Char count:";
+            // 
+            // CountOfCharsUpDown
+            // 
+            this.CountOfCharsUpDown.Location = new System.Drawing.Point(222, 26);
+            this.CountOfCharsUpDown.Maximum = new decimal(new int[] {
+            50,
+            0,
+            0,
+            0});
+            this.CountOfCharsUpDown.Minimum = new decimal(new int[] {
+            1,
+            0,
+            0,
+            0});
+            this.CountOfCharsUpDown.Name = "CountOfCharsUpDown";
+            this.CountOfCharsUpDown.Size = new System.Drawing.Size(71, 20);
+            this.CountOfCharsUpDown.TabIndex = 1;
+            this.CountOfCharsUpDown.Value = new decimal(new int[] {
+            5,
+            0,
+            0,
+            0});
+            // 
+            // UseRandomCheckBox
+            // 
+            this.UseRandomCheckBox.AutoSize = true;
+            this.UseRandomCheckBox.Location = new System.Drawing.Point(6, 29);
+            this.UseRandomCheckBox.Name = "UseRandomCheckBox";
+            this.UseRandomCheckBox.Size = new System.Drawing.Size(120, 17);
+            this.UseRandomCheckBox.TabIndex = 0;
+            this.UseRandomCheckBox.Text = "Using random chars";
+            this.UseRandomCheckBox.UseVisualStyleBackColor = true;
+            // 
             // OptionsGroupBox
             // 
             this.OptionsGroupBox.Controls.Add(this.SeparatorTextBox);
@@ -94,9 +174,9 @@
             this.OptionsGroupBox.Controls.Add(this.Sha256NumericUpDown);
             this.OptionsGroupBox.Controls.Add(this.SeparatorLabel);
             this.OptionsGroupBox.Controls.Add(this.CompressedCheckBox);
-            this.OptionsGroupBox.Location = new System.Drawing.Point(519, 22);
+            this.OptionsGroupBox.Location = new System.Drawing.Point(393, 22);
             this.OptionsGroupBox.Name = "OptionsGroupBox";
-            this.OptionsGroupBox.Size = new System.Drawing.Size(413, 140);
+            this.OptionsGroupBox.Size = new System.Drawing.Size(353, 140);
             this.OptionsGroupBox.TabIndex = 15;
             this.OptionsGroupBox.TabStop = false;
             this.OptionsGroupBox.Text = "Options";
@@ -174,7 +254,7 @@
             // MiningStartButton
             // 
             this.MiningStartButton.Font = new System.Drawing.Font("Microsoft Sans Serif", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(238)));
-            this.MiningStartButton.Location = new System.Drawing.Point(464, 197);
+            this.MiningStartButton.Location = new System.Drawing.Point(523, 188);
             this.MiningStartButton.Name = "MiningStartButton";
             this.MiningStartButton.Size = new System.Drawing.Size(100, 44);
             this.MiningStartButton.TabIndex = 11;
@@ -188,14 +268,14 @@
             this.TextSelectGroupBox.Controls.Add(this.PasswordLoadButton);
             this.TextSelectGroupBox.Location = new System.Drawing.Point(27, 22);
             this.TextSelectGroupBox.Name = "TextSelectGroupBox";
-            this.TextSelectGroupBox.Size = new System.Drawing.Size(360, 140);
+            this.TextSelectGroupBox.Size = new System.Drawing.Size(306, 140);
             this.TextSelectGroupBox.TabIndex = 10;
             this.TextSelectGroupBox.TabStop = false;
             this.TextSelectGroupBox.Text = "Select password and lookup txt files";
             // 
             // AddressLookupLoadButton
             // 
-            this.AddressLookupLoadButton.Location = new System.Drawing.Point(229, 35);
+            this.AddressLookupLoadButton.Location = new System.Drawing.Point(175, 35);
             this.AddressLookupLoadButton.Name = "AddressLookupLoadButton";
             this.AddressLookupLoadButton.Size = new System.Drawing.Size(100, 56);
             this.AddressLookupLoadButton.TabIndex = 9;
@@ -215,10 +295,10 @@
             // 
             // ProgressRichTextBox
             // 
-            this.ProgressRichTextBox.Location = new System.Drawing.Point(-4, 247);
+            this.ProgressRichTextBox.Location = new System.Drawing.Point(6, 238);
             this.ProgressRichTextBox.Name = "ProgressRichTextBox";
             this.ProgressRichTextBox.ReadOnly = true;
-            this.ProgressRichTextBox.Size = new System.Drawing.Size(936, 218);
+            this.ProgressRichTextBox.Size = new System.Drawing.Size(1146, 218);
             this.ProgressRichTextBox.TabIndex = 5;
             this.ProgressRichTextBox.Text = "";
             // 
@@ -257,6 +337,15 @@
             this.tabPage2.Text = "Incremental private key bruteforce";
             this.tabPage2.UseVisualStyleBackColor = true;
             // 
+            // label1
+            // 
+            this.label1.AutoSize = true;
+            this.label1.Location = new System.Drawing.Point(46, 86);
+            this.label1.Name = "label1";
+            this.label1.Size = new System.Drawing.Size(41, 13);
+            this.label1.TabIndex = 0;
+            this.label1.Text = "Soon...";
+            // 
             // PasswordListOpenFileDialog
             // 
             this.PasswordListOpenFileDialog.Filter = "TXT files|*.txt";
@@ -271,15 +360,6 @@
             // 
             this.MinerInfoUpdateTimer.Tick += new System.EventHandler(this.Uiupdate);
             // 
-            // label1
-            // 
-            this.label1.AutoSize = true;
-            this.label1.Location = new System.Drawing.Point(46, 86);
-            this.label1.Name = "label1";
-            this.label1.Size = new System.Drawing.Size(41, 13);
-            this.label1.TabIndex = 0;
-            this.label1.Text = "Soon...";
-            // 
             // BWForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
@@ -292,6 +372,9 @@
             this.ToolChoosingTabcontrol.ResumeLayout(false);
             this.BrainWalletTab.ResumeLayout(false);
             this.BrainWalletTab.PerformLayout();
+            this.RandomStringGroupBox.ResumeLayout(false);
+            this.RandomStringGroupBox.PerformLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.CountOfCharsUpDown)).EndInit();
             this.OptionsGroupBox.ResumeLayout(false);
             this.OptionsGroupBox.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)(this.Sha256NumericUpDown)).EndInit();
@@ -328,6 +411,12 @@
         private System.Windows.Forms.Timer MinerInfoUpdateTimer;
         private System.Windows.Forms.GroupBox OptionsGroupBox;
         private System.Windows.Forms.Label label1;
+        private System.Windows.Forms.GroupBox RandomStringGroupBox;
+        private System.Windows.Forms.Label CharsetRandomLabel;
+        private System.Windows.Forms.TextBox CharSetTextBox;
+        private System.Windows.Forms.Label RandomLabel;
+        private System.Windows.Forms.NumericUpDown CountOfCharsUpDown;
+        private System.Windows.Forms.CheckBox UseRandomCheckBox;
     }
 }
 

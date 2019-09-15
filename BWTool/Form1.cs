@@ -16,6 +16,7 @@ namespace BWTool
     public partial class BWForm : Form
     {
         BrainwalletMiner miner;
+        RandomStringMiner StringMiner;
         Stopwatch stopWatch = new Stopwatch();
         public BWForm()
         {
@@ -55,12 +56,17 @@ namespace BWTool
         }
         private bool InputisValid()
         {
-            if (AddressOpenFileDialog.FileName == "" && PasswordListOpenFileDialog.FileName == "")
+            if (AddressOpenFileDialog.FileName == "" && PasswordListOpenFileDialog.FileName == "" && !UseRandomCheckBox.Checked)
             {
                 MessageBox.Show("Please select address file and password file first!");
 
                 return false;
 
+            }
+            else if (AddressOpenFileDialog.FileName == "" && UseRandomCheckBox.Checked)
+            {
+                MessageBox.Show("Please select address file first!");
+                return false;
             }
             else
             {
@@ -71,40 +77,73 @@ namespace BWTool
 
         private void MiningStartButton_Click(object sender, EventArgs e)
         {
-            if (InputisValid())
+            if (UseRandomCheckBox.Checked)
             {
-                char separator = '\0';
-                if (SeparatorEnterCheckBox.Checked)
+                if (InputisValid())
                 {
-                    separator = '\r';
-                }
-                else
-                {
-                    separator = Convert.ToChar(SeparatorTextBox.Text);
-                }
-                if (MiningStartButton.Text == "Start Mining")
-                {
-                    MiningStartButton.Text = "Stop Mining";
+                    if (MiningStartButton.Text == "Start Mining")
+                    {
+                        MiningStartButton.Text = "Stop Mining";
+                        if (CharSetTextBox.Text.Length > 0)
+                        {
+                            StringMiner = new RandomStringMiner((int)CountOfCharsUpDown.Value, AddressOpenFileDialog.FileName, CompressedCheckBox.Checked, (int)Sha256NumericUpDown.Value, CharSetTextBox.Text);
+                        }
+                        else
+                        {
+                            StringMiner = new RandomStringMiner((int)CountOfCharsUpDown.Value, AddressOpenFileDialog.FileName, CompressedCheckBox.Checked, (int)Sha256NumericUpDown.Value);
+                        }
+                        StringMiner.StartRandomStringMiner();
+                        MinerInfoUpdateTimer.Start();
+                        stopWatch.Start();
 
-                    miner = new BrainwalletMiner(PasswordListOpenFileDialog.FileName, AddressOpenFileDialog.FileName, CompressedCheckBox.Checked, separator, (int)Sha256NumericUpDown.Value);
-                    miner.Start();
-                    MinerInfoUpdateTimer.Start();
-                    stopWatch.Start();
 
+                    }
+                    else
+                    {
+                        stopMiner();
+                    }
                 }
-                else
+
+            }
+            else
+            {
+                if (InputisValid())
                 {
-                    stopPassphraseMiner();
+                    char separator = '\0';
+                    if (SeparatorEnterCheckBox.Checked)
+                    {
+                        separator = '\r';
+                    }
+                    else
+                    {
+                        separator = Convert.ToChar(SeparatorTextBox.Text);
+                    }
+                    if (MiningStartButton.Text == "Start Mining")
+                    {
+                        MiningStartButton.Text = "Stop Mining";
+
+                        miner = new BrainwalletMiner(PasswordListOpenFileDialog.FileName, AddressOpenFileDialog.FileName, CompressedCheckBox.Checked, separator, (int)Sha256NumericUpDown.Value);
+                        miner.Start();
+                        MinerInfoUpdateTimer.Start();
+                        stopWatch.Start();
+
+                    }
+                    else
+                    {
+                        stopMiner();
+                    }
                 }
             }
+           
 
 
         }
 
-        void stopPassphraseMiner()
+        void stopMiner()
         {
             MiningStartButton.Text = "Start Mining";
             miner?.Stop();
+            StringMiner?.StopRandomStringMiner();
             MinerInfoUpdateTimer.Stop();
             MiningProgressBar.Value = 0;
             ProgressLabel.Text = "";
@@ -124,7 +163,7 @@ namespace BWTool
             double timeLeft;
             try
             {
-                timeLeft = ((double)stopWatch.Elapsed.TotalSeconds / MinerInfo.currentlyProcessedLine) * (MinerInfo.passwordFileLineLength - MinerInfo.currentlyProcessedLine);
+                timeLeft = ((double)stopWatch.Elapsed.TotalSeconds / MinerInfo.currentlyProcessed) * (MinerInfo.lengthOfJob - MinerInfo.currentlyProcessed);
             }
             catch (DivideByZeroException)
             {
@@ -133,13 +172,13 @@ namespace BWTool
             }
 
             ProgressLabel.Text = $"Tried keys: {MinerInfo.countOfTriedKeys},elapsed seconds: {stopWatch.Elapsed.TotalSeconds.ToString("N1")}, average keys perc second: {(MinerInfo.countOfTriedKeys / stopWatch.Elapsed.TotalSeconds).ToString("N2")}, estimated time left: {Math.Round(timeLeft)} seconds, miner thread info: {MinerInfo.minerThreadInfo}";
-            double progressValue = 100 / (MinerInfo.passwordFileLineLength / (double)MinerInfo.currentlyProcessedLine);
+            double progressValue = 100 / (MinerInfo.lengthOfJob / (double)MinerInfo.currentlyProcessed);
             int percentValue = (int)Math.Round(progressValue);
             MiningProgressBar.Value = percentValue;
             //Job was done by the thread already
             if (!MinerInfo.minerStillRunning)
             {
-                stopPassphraseMiner();
+                stopMiner();
 
 
             }
@@ -148,9 +187,10 @@ namespace BWTool
         {
             if (MinerInfo.minerStillRunning)
             {
-                stopPassphraseMiner();
+                stopMiner();
             }
 
         }
+
     }
 }

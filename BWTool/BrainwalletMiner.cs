@@ -75,14 +75,14 @@ namespace BWTool
             stopwatch.Start();
             Task.Factory.StartNew(() =>
             {
-                MinerInfo.minerThreadInfo = ""; ;
+                MinerInfo.minerThreadInfo = ""; 
                 MinerInfo.minerThreadInfo= "Reading file length...";
                 using (StreamReader streamReader = new StreamReader(pathOfPassphraseFile))
                 {
                     while (streamReader.Peek() != -1 && !cancellationToken.IsCancellationRequested)
                     {
                         streamReader.ReadLine();
-                        MinerInfo.passwordFileLineLength++;
+                        MinerInfo.lengthOfJob++;
                     }
                 }
                 int lookupAddresscount = 0;
@@ -103,29 +103,29 @@ namespace BWTool
                     lookupBloom.Add(sr.ReadLine());
                 }
               //  lookupAdresses = new HashSet<string>(File.ReadAllLines(pathOfLookupAddresses));
-                MinerInfo.minerThreadInfo = ""; ;
+                MinerInfo.minerThreadInfo = ""; 
                 MinerInfo.minerThreadInfo = "Generating bloomfilter done, mining...";
                 using (StreamReader streamReader = new StreamReader(pathOfPassphraseFile))
                 {
 
-                    List<string> lines = new List<string>((int)MinerInfo.passwordFileLineLength / 100);
+                    List<string> lines = new List<string>((int)MinerInfo.lengthOfJob / 100);
                     while (streamReader.Peek() != -1 && !cancellationToken.IsCancellationRequested)
                     {
                         lines.Add(streamReader.ReadLine());
-                        MinerInfo.currentlyProcessedLine++;
-                        if (MinerInfo.currentlyProcessedLine % (MinerInfo.passwordFileLineLength / 100) == 0)
+                        MinerInfo.currentlyProcessed++;
+                        if (MinerInfo.currentlyProcessed % (MinerInfo.lengthOfJob / 100) == 0)
                         {
                             ParseLines(lines);
                             lines.Clear();
 
                         }
-                        if (MinerInfo.currentlyProcessedLine == MinerInfo.passwordFileLineLength)
+                        if (MinerInfo.currentlyProcessed == MinerInfo.lengthOfJob)
                         {
                             ParseLines(lines);
                         }
                     }
                     stopwatch.Stop();
-                    MinerInfo.minerThreadResults= $"{Environment.NewLine}Found keys: {foundKeyCount}, ckecked passwords: {MinerInfo.countOfTriedKeys} {Environment.NewLine}Additional data: - password file length: {MinerInfo.passwordFileLineLength} line, elapsed time: {stopwatch.Elapsed}, keys/second: {MinerInfo.countOfTriedKeys / stopwatch.Elapsed.TotalSeconds}";
+                    MinerInfo.minerThreadResults= $"{Environment.NewLine}Found keys: {foundKeyCount}, ckecked passwords: {MinerInfo.countOfTriedKeys} {Environment.NewLine}Additional data: - password file length: {MinerInfo.lengthOfJob} line, elapsed time: {stopwatch.Elapsed}, keys/second: {MinerInfo.countOfTriedKeys / stopwatch.Elapsed.TotalSeconds}";
                     Dispose();
                     MinerInfo.minerStillRunning = false;
                 }

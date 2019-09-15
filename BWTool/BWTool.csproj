@@ -127,6 +127,7 @@
     <Compile Include="MinerInfo.cs" />
     <Compile Include="BrainwalletMiner.cs" />
     <Compile Include="PublicKey.cs" />
+    <Compile Include="RandomStringMiner.cs" />
     <Compile Include="Util.cs" />
     <Compile Include="Form1.cs">
       <SubType>Form</SubType>
