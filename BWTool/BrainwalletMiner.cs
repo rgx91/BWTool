@@ -97,7 +97,7 @@ namespace BWTool
 
                 }
                 MinerInfo.minerThreadInfo = "";
-                MinerInfo.minerThreadInfo = "Reading file done,generating bloomfilter...";
+                MinerInfo.minerThreadInfo = "Reading file done,generating hashset...";
                 lookupSet = new HashSet<string>(lookupAddresscount);
                 using (StreamReader sr = new StreamReader(pathOfLookupAddresses))
                 {
@@ -109,7 +109,7 @@ namespace BWTool
                 }
                 //  lookupAdresses = new HashSet<string>(File.ReadAllLines(pathOfLookupAddresses));
                 MinerInfo.minerThreadInfo = "";
-                MinerInfo.minerThreadInfo = "Generating bloomfilter done, mining...";
+                MinerInfo.minerThreadInfo = "Generating hashset done, mining...";
                 using (StreamReader streamReader = new StreamReader(pathOfPassphraseFile))
                 {
 
