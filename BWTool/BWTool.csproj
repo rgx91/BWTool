@@ -121,7 +121,6 @@
   <ItemGroup>
     <Compile Include="AddressBase.cs" />
     <Compile Include="Base58.cs" />
-    <Compile Include="Filter.cs" />
     <Compile Include="Keys.cs" />
     <Compile Include="MinbiKeyPair.cs" />
     <Compile Include="MinerInfo.cs" />

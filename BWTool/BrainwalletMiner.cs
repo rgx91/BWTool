@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -17,7 +18,7 @@ namespace BWTool
         StreamReader streamReaderOfPassphraseFile;
         StreamReader streamReaderOfAddressesFile;
         private int foundKeyCount = 0;
-        Filter<string> lookupBloom;
+        HashSet<string> lookupSet;
         string pathOfPassphraseFile;
         string pathOfLookupAddresses;
         char separator;
@@ -25,7 +26,7 @@ namespace BWTool
         int countOfSha256Operation;
         CancellationTokenSource cancellationToken;
         Stopwatch stopwatch = new Stopwatch();
- 
+
 
 
         public BrainwalletMiner(string pathOfPassphraseFile, string pathOfLookupAddresses, bool compressed, char separator, int countOfSha256Operation)
@@ -38,7 +39,7 @@ namespace BWTool
             this.pathOfLookupAddresses = pathOfLookupAddresses;
             this.pathOfPassphraseFile = pathOfPassphraseFile;
             this.countOfSha256Operation = countOfSha256Operation;
-  
+
         }
 
         public void Dispose()
@@ -47,7 +48,7 @@ namespace BWTool
             streamReaderOfAddressesFile.Dispose();
             cancellationToken.Dispose();
             _lock.Dispose();
-            
+
         }
         public void Start()
         {
@@ -64,7 +65,7 @@ namespace BWTool
             catch (ObjectDisposedException)
             {
 
-                
+
             }
 
 
@@ -75,8 +76,8 @@ namespace BWTool
             stopwatch.Start();
             Task.Factory.StartNew(() =>
             {
-                MinerInfo.minerThreadInfo = ""; 
-                MinerInfo.minerThreadInfo= "Reading file length...";
+                MinerInfo.minerThreadInfo = "";
+                MinerInfo.minerThreadInfo = "Reading file length...";
                 using (StreamReader streamReader = new StreamReader(pathOfPassphraseFile))
                 {
                     while (streamReader.Peek() != -1 && !cancellationToken.IsCancellationRequested)
@@ -88,22 +89,26 @@ namespace BWTool
                 int lookupAddresscount = 0;
                 using (StreamReader sr = new StreamReader(pathOfLookupAddresses))
                 {
-                    while (sr.Peek()!=-1)
+                    while (sr.Peek() != -1)
                     {
                         sr.ReadLine();
                         lookupAddresscount++;
                     }
 
                 }
-                MinerInfo.minerThreadInfo = ""; 
+                MinerInfo.minerThreadInfo = "";
                 MinerInfo.minerThreadInfo = "Reading file done,generating bloomfilter...";
-                lookupBloom = new Filter<string>(lookupAddresscount);
+                lookupSet = new HashSet<string>(lookupAddresscount);
                 using (StreamReader sr = new StreamReader(pathOfLookupAddresses))
                 {
-                    lookupBloom.Add(sr.ReadLine());
+                    while (sr.Peek() != -1)
+                    {
+                        lookupSet.Add(sr.ReadLine());
+
+                    }
                 }
-              //  lookupAdresses = new HashSet<string>(File.ReadAllLines(pathOfLookupAddresses));
-                MinerInfo.minerThreadInfo = ""; 
+                //  lookupAdresses = new HashSet<string>(File.ReadAllLines(pathOfLookupAddresses));
+                MinerInfo.minerThreadInfo = "";
                 MinerInfo.minerThreadInfo = "Generating bloomfilter done, mining...";
                 using (StreamReader streamReader = new StreamReader(pathOfPassphraseFile))
                 {
@@ -125,7 +130,7 @@ namespace BWTool
                         }
                     }
                     stopwatch.Stop();
-                    MinerInfo.minerThreadResults= $"{Environment.NewLine}Found keys: {foundKeyCount}, ckecked passwords: {MinerInfo.countOfTriedKeys} {Environment.NewLine}Additional data: - password file length: {MinerInfo.lengthOfJob} line, elapsed time: {stopwatch.Elapsed}, keys/second: {MinerInfo.countOfTriedKeys / stopwatch.Elapsed.TotalSeconds}";
+                    MinerInfo.minerThreadResults = $"{Environment.NewLine}Found keys: {foundKeyCount}, ckecked passwords: {MinerInfo.countOfTriedKeys} {Environment.NewLine}Additional data: - password file length: {MinerInfo.lengthOfJob} line, elapsed time: {stopwatch.Elapsed}, keys/second: {MinerInfo.countOfTriedKeys / stopwatch.Elapsed.TotalSeconds}";
                     Dispose();
                     MinerInfo.minerStillRunning = false;
                 }
@@ -137,7 +142,7 @@ namespace BWTool
             }
             , TaskCreationOptions.LongRunning);
         }
-        private void ParseLines(List<string> textLines)
+        private  void ParseLines(List<string> textLines)
         {
             //Splitting here on user selected separator
             if (separator != '\r')
@@ -174,41 +179,33 @@ namespace BWTool
                         localStringBuilder.Append(textLines[i] + " ");
                     }
                 }
-                LookupKeys(splittedList);
+                 LookupKeys(splittedList);
             }
             else
             {
-                LookupKeys(textLines);;
+                LookupKeys(textLines); ;
             }
         }
-        private void LookupKeys(List<string> lookupAdressesList)
+        private  void LookupKeys(List<string> lookupAdressesList)
         {
-
-                Parallel.ForEach(lookupAdressesList, (line, state) =>
+            for (int i = 0; i < lookupAdressesList.Count; i++)
+            {
+                MinerInfo.countOfTriedKeys++;
+                string address = GetAddress(lookupAdressesList[i], compressed, countOfSha256Operation);
+                if (lookupSet.Contains(address))
                 {
-                    Interlocked.Increment(ref MinerInfo.countOfTriedKeys);
-                    if (ThreadSafeContains(GetAddress(line, compressed, countOfSha256Operation)))
-                    {
-                        MinerInfo.minerThreadInfo = $"Found key!!!! Password: {line}, address: {GetAddress(line, compressed, countOfSha256Operation)}";
-                        Interlocked.Increment(ref foundKeyCount);
-
+                    MinerInfo.minerThreadInfo = $"Found key!!!! Password: {lookupAdressesList[i]}, address: {address}";
+                    foundKeyCount++;
                         StreamWriter streamWriter = new StreamWriter("keys.txt", true);
-                        lock (streamWriter)
-                        {
-                            string key = line + " " + GetAddress(line, compressed, countOfSha256Operation);
-                            streamWriter.WriteLine(key);
-                            streamWriter.Flush();
-                            streamWriter.Close();
-                        }
-                    }
-                    if (cancellationToken.IsCancellationRequested)
-                    {
-                        state.Break();
-                    }
-                });
 
-            
+                        string key = lookupAdressesList[i] + " " + address;
+                        streamWriter.WriteLine(key);
+                        streamWriter.Flush();
+                        streamWriter.Close();
 
+
+                }
+            }
         }
         private string GetAddress(string stringData, bool isCompressedKey = false, int sha256 = 1)
         {
@@ -229,8 +226,8 @@ namespace BWTool
                 }
 
                 var privateKey = isCompressedKey ? new Key(data, fCompressedIn: true) : new Key(data, fCompressedIn: false);
-                return privateKey.PubKey.GetAddress(ScriptPubKeyType.Legacy, Network.Main).ToString(); 
-               // var bitcoinPrivateKey = privateKey.GetWif(Network.Main);
+                return privateKey.PubKey.GetAddress(ScriptPubKeyType.Legacy, Network.Main).ToString();
+                // var bitcoinPrivateKey = privateKey.GetWif(Network.Main);
                 //var bitcoinAddress = bitcoinPrivateKey.GetAddress(ScriptPubKeyType.Legacy).ToString();
                 //return bitcoinAddress;
             }
@@ -256,18 +253,6 @@ namespace BWTool
             }
 
             return Casascius.Bitcoin.Util.ComputeSha256(returnedHash);
-        }
-        private bool ThreadSafeContains(string item)
-        {
-            _lock.EnterReadLock();
-            try
-            {
-                return lookupBloom.Contains(item);
-            }
-            finally
-            {
-                if (_lock.IsReadLockHeld) _lock.ExitReadLock();
-            }
         }
 
     }

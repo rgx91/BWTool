@@ -289,7 +289,7 @@
             this.PasswordLoadButton.Name = "PasswordLoadButton";
             this.PasswordLoadButton.Size = new System.Drawing.Size(98, 56);
             this.PasswordLoadButton.TabIndex = 3;
-            this.PasswordLoadButton.Text = "Load TextFile";
+            this.PasswordLoadButton.Text = "Load Password text file";
             this.PasswordLoadButton.UseVisualStyleBackColor = true;
             this.PasswordLoadButton.Click += new System.EventHandler(this.PasswordLoadButton_Click);
             // 
