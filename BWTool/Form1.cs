@@ -19,7 +19,7 @@ namespace BWTool
     {
         BrainwalletMiner miner;
         RandomStringMiner StringMiner;
-        IncrementalSearch incremental;
+        KeyRangeMiner incremental;
         Stopwatch stopWatch = new Stopwatch();
         public BWForm()
         {
@@ -105,7 +105,7 @@ namespace BWTool
                     {
                         MiningStartButton.Text = "Stop Mining";
                         bool increment = IncrementRadio.Checked ? true : false;
-                        incremental = new IncrementalSearch(AddressOpenFileDialog.FileName, LookupCompressedCheckbox.Checked, Hexbox.Checked, FromTextbox.Text, UntilTextbox.Text,increment,this,ProgressRichTextBox);
+                        incremental = new KeyRangeMiner(AddressOpenFileDialog.FileName, LookupCompressedCheckbox.Checked, Hexbox.Checked, FromTextbox.Text, UntilTextbox.Text,increment,this,ProgressRichTextBox);
                         incremental.StartIncrementalSearch();
                         MinerInfoUpdateTimer.Start();
                         stopWatch.Start();

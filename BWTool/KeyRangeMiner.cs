@@ -14,11 +14,9 @@ using System.Windows.Forms;
 
 namespace BWTool
 {
-    class IncrementalSearch : IDisposable
+    class KeyRangeMiner : IDisposable
     {
-        private readonly ReaderWriterLockSlim _lock = new ReaderWriterLockSlim(LockRecursionPolicy.SupportsRecursion);
         Stopwatch stopwatch = new Stopwatch();
-        Random random = new Random();
         CancellationTokenSource cancellationToken;
         private bool hex;
         private bool increment;
@@ -30,7 +28,7 @@ namespace BWTool
         bool compressed = false;
         Form form;
         RichTextBox textBox;
-        public IncrementalSearch(string pathOfLookupAddresses, bool compressed, bool hex, string from, string until, bool increment, Form form, RichTextBox richTextBox)
+        public KeyRangeMiner(string pathOfLookupAddresses, bool compressed, bool hex, string from, string until, bool increment, Form form, RichTextBox richTextBox)
         {
             this.textBox = richTextBox;
             this.form = form;
@@ -187,7 +185,7 @@ namespace BWTool
 
         public void Dispose()
         {
-            _lock.Dispose();
+            //Not used right now
         }
     }
 }

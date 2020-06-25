@@ -63,14 +63,14 @@
             this.DecrementRadio = new System.Windows.Forms.RadioButton();
             this.UntilLabel = new System.Windows.Forms.Label();
             this.IncrementRadio = new System.Windows.Forms.RadioButton();
-            this.PasswordListOpenFileDialog = new System.Windows.Forms.OpenFileDialog();
-            this.AddressOpenFileDialog = new System.Windows.Forms.OpenFileDialog();
-            this.MinerInfoUpdateTimer = new System.Windows.Forms.Timer(this.components);
             this.tabPage1 = new System.Windows.Forms.TabPage();
             this.label1 = new System.Windows.Forms.Label();
             this.tabPage3 = new System.Windows.Forms.TabPage();
-            this.label2 = new System.Windows.Forms.Label();
             this.linkLabel1 = new System.Windows.Forms.LinkLabel();
+            this.label2 = new System.Windows.Forms.Label();
+            this.PasswordListOpenFileDialog = new System.Windows.Forms.OpenFileDialog();
+            this.AddressOpenFileDialog = new System.Windows.Forms.OpenFileDialog();
+            this.MinerInfoUpdateTimer = new System.Windows.Forms.Timer(this.components);
             this.ToolChoosingTabcontrol.SuspendLayout();
             this.BrainWalletTab.SuspendLayout();
             this.RandomStringGroupBox.SuspendLayout();
@@ -348,10 +348,10 @@
             this.MininingInformationToolstrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.ProgressLabel,
             this.MiningProgressBar});
-            this.MininingInformationToolstrip.Location = new System.Drawing.Point(3, 620);
+            this.MininingInformationToolstrip.Location = new System.Drawing.Point(3, 624);
             this.MininingInformationToolstrip.Name = "MininingInformationToolstrip";
             this.MininingInformationToolstrip.Padding = new System.Windows.Forms.Padding(0, 0, 3, 0);
-            this.MininingInformationToolstrip.Size = new System.Drawing.Size(1354, 29);
+            this.MininingInformationToolstrip.Size = new System.Drawing.Size(1354, 25);
             this.MininingInformationToolstrip.TabIndex = 4;
             this.MininingInformationToolstrip.Text = "toolStrip1";
             // 
@@ -478,9 +478,9 @@
             this.UntilLabel.AutoSize = true;
             this.UntilLabel.Location = new System.Drawing.Point(17, 64);
             this.UntilLabel.Name = "UntilLabel";
-            this.UntilLabel.Size = new System.Drawing.Size(98, 15);
+            this.UntilLabel.Size = new System.Drawing.Size(37, 15);
             this.UntilLabel.TabIndex = 2;
-            this.UntilLabel.Text = "Until (Optional):";
+            this.UntilLabel.Text = "Until:";
             // 
             // IncrementRadio
             // 
@@ -494,20 +494,6 @@
             this.IncrementRadio.TabStop = true;
             this.IncrementRadio.Text = "Increment";
             this.IncrementRadio.UseVisualStyleBackColor = true;
-            // 
-            // PasswordListOpenFileDialog
-            // 
-            this.PasswordListOpenFileDialog.Filter = "TXT files|*.txt";
-            this.PasswordListOpenFileDialog.Title = "Open Password Text File";
-            // 
-            // AddressOpenFileDialog
-            // 
-            this.AddressOpenFileDialog.Filter = "TXT files|*.txt";
-            this.AddressOpenFileDialog.Title = "Open address Text File";
-            // 
-            // MinerInfoUpdateTimer
-            // 
-            this.MinerInfoUpdateTimer.Tick += new System.EventHandler(this.Uiupdate);
             // 
             // tabPage1
             // 
@@ -542,16 +528,6 @@
             this.tabPage3.Text = "I found some bitcoin with this program!";
             this.tabPage3.UseVisualStyleBackColor = true;
             // 
-            // label2
-            // 
-            this.label2.AutoSize = true;
-            this.label2.Font = new System.Drawing.Font("Cambria", 18F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(238)));
-            this.label2.Location = new System.Drawing.Point(385, 113);
-            this.label2.Name = "label2";
-            this.label2.Size = new System.Drawing.Size(464, 28);
-            this.label2.TabIndex = 0;
-            this.label2.Text = "Than send the half of it for me ;) my address:";
-            // 
             // linkLabel1
             // 
             this.linkLabel1.AutoSize = true;
@@ -562,6 +538,30 @@
             this.linkLabel1.TabStop = true;
             this.linkLabel1.Text = "1M2gDmAVqToASzzRXaehgxrZN5hV8LscFv";
             this.linkLabel1.LinkClicked += new System.Windows.Forms.LinkLabelLinkClickedEventHandler(this.linkLabel1_LinkClicked);
+            // 
+            // label2
+            // 
+            this.label2.AutoSize = true;
+            this.label2.Font = new System.Drawing.Font("Cambria", 18F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(238)));
+            this.label2.Location = new System.Drawing.Point(385, 113);
+            this.label2.Name = "label2";
+            this.label2.Size = new System.Drawing.Size(464, 28);
+            this.label2.TabIndex = 0;
+            this.label2.Text = "Than send the half of it for me ;) my address:";
+            // 
+            // PasswordListOpenFileDialog
+            // 
+            this.PasswordListOpenFileDialog.Filter = "TXT files|*.txt";
+            this.PasswordListOpenFileDialog.Title = "Open Password Text File";
+            // 
+            // AddressOpenFileDialog
+            // 
+            this.AddressOpenFileDialog.Filter = "TXT files|*.txt";
+            this.AddressOpenFileDialog.Title = "Open address Text File";
+            // 
+            // MinerInfoUpdateTimer
+            // 
+            this.MinerInfoUpdateTimer.Tick += new System.EventHandler(this.Uiupdate);
             // 
             // BWForm
             // 

@@ -142,7 +142,7 @@
     <Compile Include="AddressBase.cs" />
     <Compile Include="Base58.cs" />
     <Compile Include="Helper.cs" />
-    <Compile Include="IncrementalSearch.cs" />
+    <Compile Include="KeyRangeMiner.cs" />
     <Compile Include="Keys.cs" />
     <Compile Include="MinbiKeyPair.cs" />
     <Compile Include="MinerInfo.cs" />
