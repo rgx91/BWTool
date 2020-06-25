@@ -81,7 +81,11 @@ namespace BWTool
                 lookupSet = new HashSet<string>(lookupAddresscount);
                 using (StreamReader sr = new StreamReader(path))
                 {
+                    while (sr.Peek()!=-1)
+                    {
+
                     lookupSet.Add(sr.ReadLine());
+                    }
                 }
                 MinerInfo.minerThreadInfo = ""; ;
                 MinerInfo.minerThreadInfo = "Generating hashset done, mining...";
