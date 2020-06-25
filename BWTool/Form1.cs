@@ -4,12 +4,14 @@ using System.ComponentModel;
 using System.Data;
 using System.Diagnostics;
 using System.Drawing;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using NBitcoin;
+using System.Numerics;
 
 namespace BWTool
 {
@@ -17,10 +19,12 @@ namespace BWTool
     {
         BrainwalletMiner miner;
         RandomStringMiner StringMiner;
+        IncrementalSearch incremental;
         Stopwatch stopWatch = new Stopwatch();
         public BWForm()
         {
             InitializeComponent();
+
         }
 
 
@@ -37,7 +41,7 @@ namespace BWTool
             if (SeparatorTextBox.Text.Length > 0 && SeparatorTextBox.Text.Length < 2)
             {
                 SeparatorEnterCheckBox.Checked = false;
-                
+
 
             }
             else
@@ -56,27 +60,69 @@ namespace BWTool
         }
         private bool InputisValid()
         {
-            if (AddressOpenFileDialog.FileName == "" && PasswordListOpenFileDialog.FileName == "" && !UseRandomCheckBox.Checked)
+            if (ToolChoosingTabcontrol.SelectedIndex == 1)
             {
-                MessageBox.Show("Please select address file and password file first!");
-
-                return false;
-
-            }
-            else if (AddressOpenFileDialog.FileName == "" && UseRandomCheckBox.Checked)
-            {
-                MessageBox.Show("Please select address file first!");
-                return false;
+                if (FromTextbox.Text.Length > 0 && UntilTextbox.Text.Length > 0 && AddressOpenFileDialog.FileName != "")
+                {
+                    return true;
+                }
+                else
+                {
+                    MessageBox.Show("Please fill the missing values!");
+                    return false;
+                }
             }
             else
             {
-                return true;
+                if (AddressOpenFileDialog.FileName == "" && PasswordListOpenFileDialog.FileName == "" && !UseRandomCheckBox.Checked)
+                {
+                    MessageBox.Show("Please select address file and password file first!");
+
+                    return false;
+
+                }
+                else if (AddressOpenFileDialog.FileName == "" && UseRandomCheckBox.Checked)
+                {
+                    MessageBox.Show("Please select address file first!");
+                    return false;
+                }
+                else
+                {
+                    return true;
+                }
             }
+
 
         }
 
         private void MiningStartButton_Click(object sender, EventArgs e)
         {
+            if (ToolChoosingTabcontrol.SelectedIndex == 1)
+            {
+                if (InputisValid())
+                {
+                    if (MiningStartButton.Text == "Start Mining")
+                    {
+                        MiningStartButton.Text = "Stop Mining";
+                        bool increment = IncrementRadio.Checked ? true : false;
+                        incremental = new IncrementalSearch(AddressOpenFileDialog.FileName, LookupCompressedCheckbox.Checked, Hexbox.Checked, FromTextbox.Text, UntilTextbox.Text,increment,this,ProgressRichTextBox);
+                        incremental.StartIncrementalSearch();
+                        MinerInfoUpdateTimer.Start();
+                        stopWatch.Start();
+
+
+                    }
+                    else
+                    {
+                        stopMiner();
+                    }
+                    return;
+                }
+                else
+                {
+                    return;
+                }
+            }
             if (UseRandomCheckBox.Checked)
             {
                 if (InputisValid())
@@ -102,6 +148,7 @@ namespace BWTool
                     {
                         stopMiner();
                     }
+                    return;
                 }
 
             }
@@ -134,16 +181,16 @@ namespace BWTool
                     }
                 }
             }
-           
+
 
 
         }
-
         void stopMiner()
         {
             MiningStartButton.Text = "Start Mining";
             miner?.Stop();
             StringMiner?.StopRandomStringMiner();
+            incremental?.StopRandomStringMiner();
             MinerInfoUpdateTimer.Stop();
             MiningProgressBar.Value = 0;
             ProgressLabel.Text = "";
@@ -160,6 +207,11 @@ namespace BWTool
         }
         private void Uiupdate(object sender, EventArgs e)
         {
+            if (!MinerInfo.minerStillRunning)
+            {
+                stopMiner();
+                return;
+            }
             double timeLeft;
             try
             {
@@ -171,7 +223,7 @@ namespace BWTool
                 timeLeft = double.NaN;
             }
 
-            ProgressLabel.Text = $"Tried keys: {MinerInfo.countOfTriedKeys},elapsed seconds: {stopWatch.Elapsed.TotalSeconds.ToString("N1")}, average keys perc second: {(MinerInfo.countOfTriedKeys / stopWatch.Elapsed.TotalSeconds).ToString("N2")}, estimated time left: {Math.Round(timeLeft)} seconds, miner thread info: {MinerInfo.minerThreadInfo}";
+            ProgressLabel.Text = $"Tried keys: {MinerInfo.countOfTriedKeys},elapsed seconds: {stopWatch.Elapsed.TotalSeconds.ToString("N1")}, average keys perc second: {(MinerInfo.countOfTriedKeys / stopWatch.Elapsed.TotalSeconds).ToString("N2")}, estimated time left: {Math.Round(timeLeft)} seconds, miner thread info:{Environment.NewLine}{MinerInfo.minerThreadInfo}";
             double progressValue = 100 / (MinerInfo.lengthOfJob / (double)MinerInfo.currentlyProcessed);
             int percentValue = (int)Math.Round(progressValue);
             MiningProgressBar.Value = percentValue;
@@ -192,5 +244,87 @@ namespace BWTool
 
         }
 
+        private void ToolChoosingTabcontrol_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            if (!ToolChoosingTabcontrol.SelectedTab.Controls.Contains(MiningStartButton) && ToolChoosingTabcontrol.SelectedIndex<2)
+            {
+
+                ToolChoosingTabcontrol.SelectedTab.Controls.Add(MiningStartButton);
+                ToolChoosingTabcontrol.SelectedTab.Controls.Add(ProgressRichTextBox);
+                ToolChoosingTabcontrol.SelectedTab.Controls.Add(MininingInformationToolstrip);
+            }
+        }
+
+        private void AllowOnlyNumbersAbove0AndBelowBitcoinMaxValue(TextBox textBox)
+        {
+            if (textBox.Text.Length > 0)
+            {
+                if (!Helper.OnlyHexInString(textBox.Text) && !Helper.IsDigitsOnly(textBox.Text))
+                {
+                    textBox.Text = "";
+                    return;
+                }
+                if (Helper.IsDigitsOnly(textBox.Text))
+                {
+                    var number = BigInteger.Parse(textBox.Text, NumberStyles.Integer);
+                    if (number.CompareTo(1) < 0)
+                    {
+                        MessageBox.Show("Value must be bigger than 0!");
+                        textBox.Text = "";
+                    }
+                    else if (number.CompareTo(BigInteger.Parse("115792089237316195423570985008687907852837564279074904382605163141518161494336")) == 1)
+                    {
+                        MessageBox.Show("Value must be smaller than bitcoin max value!");
+                        textBox.Text = "";
+                    }
+                }
+                else if (Helper.OnlyHexInString(textBox.Text))
+                {
+                    var number = BigInteger.Parse("0" + textBox.Text, NumberStyles.HexNumber);
+                    if (number.CompareTo(1) < 0)
+                    {
+                        MessageBox.Show("Value must be bigger than 0!");
+                        textBox.Text = "";
+                    }
+                    else if (number.CompareTo(BigInteger.Parse("0FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364140", NumberStyles.HexNumber)) == 1)
+                    {
+                        MessageBox.Show("Value must be smaller than bitcoin max value!");
+                        textBox.Text = "";
+                    }
+                }
+
+
+
+            }
+        }
+        private void Hexbox_CheckedChanged(object sender, EventArgs e)
+        {
+
+            FromTextbox.Text = Helper.ConvertBigintegerTextBetweenHexAndDecimal(FromTextbox.Text, Hexbox.Checked);
+            UntilTextbox.Text = Helper.ConvertBigintegerTextBetweenHexAndDecimal(UntilTextbox.Text, Hexbox.Checked);
+        }
+        private void UntilTextbox_KeyUp(object sender, KeyEventArgs e)
+        {
+            AllowOnlyNumbersAbove0AndBelowBitcoinMaxValue((TextBox)sender);
+
+        }
+
+        private void FromTextbox_KeyUp(object sender, KeyEventArgs e)
+        {
+            AllowOnlyNumbersAbove0AndBelowBitcoinMaxValue((TextBox)sender);
+        }
+
+        private void LoadBitcoinAddressList_Click(object sender, EventArgs e)
+        {
+            if (AddressOpenFileDialog.ShowDialog() == DialogResult.OK)
+            {
+                ProgressRichTextBox.AppendText($"Selected lookup address list: {AddressOpenFileDialog.FileName}{Environment.NewLine}");
+            }
+        }
+
+        private void linkLabel1_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
+        {
+            System.Diagnostics.Process.Start("Bitcoin:1M2gDmAVqToASzzRXaehgxrZN5hV8LscFv");
+        }
     }
 }
