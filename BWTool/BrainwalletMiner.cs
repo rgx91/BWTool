@@ -26,6 +26,11 @@ namespace BWTool
         int countOfSha256Operation;
         CancellationTokenSource cancellationToken;
         Stopwatch stopwatch = new Stopwatch();
+        private readonly BlockingCollection<string> _foundLines = new BlockingCollection<string>(10_000);
+        private Task _writerTask;
+        private readonly object _fileInitLock = new object();
+        private readonly ParallelOptions _po;
+        private long _foundKeyCount; // make this long for Interlocked
 
 
 
@@ -39,6 +44,11 @@ namespace BWTool
             this.pathOfLookupAddresses = pathOfLookupAddresses;
             this.pathOfPassphraseFile = pathOfPassphraseFile;
             this.countOfSha256Operation = countOfSha256Operation;
+            _po = new ParallelOptions
+            {
+                CancellationToken = cancellationToken.Token,
+                MaxDegreeOfParallelism = Environment.ProcessorCount
+            };
 
         }
 

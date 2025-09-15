@@ -21,6 +21,7 @@ using System.Linq;
 using System.Text;
 using System.Security.Cryptography;
 using System.IO;
+using BWTool;
 
 
 namespace Casascius.Bitcoin
@@ -75,8 +76,8 @@ namespace Casascius.Bitcoin
         protected override byte[] ComputeHash160()
         {
             byte[] shaofpubkey = Util.ComputeSha256(PublicKeyBytes);
-            RIPEMD160 rip = System.Security.Cryptography.RIPEMD160.Create();
-            return rip.ComputeHash(shaofpubkey);
+            
+            return RIPEMD160.ComputeHash(shaofpubkey);
         }
 
         /// <summary>

@@ -30,6 +30,7 @@ using Org.BouncyCastle.Crypto.Parameters;
 using Org.BouncyCastle.Security;
 using Org.BouncyCastle.Math.EC;
 using ECPoint = Org.BouncyCastle.Math.EC.ECPoint;
+using BWTool;
 
 namespace Casascius.Bitcoin
 {
@@ -366,8 +367,8 @@ namespace Casascius.Bitcoin
 
             byte[] shaofpubkey = ComputeSha256(PubHex);
 
-            RIPEMD160 rip = System.Security.Cryptography.RIPEMD160.Create();
-            byte[] ripofpubkey = rip.ComputeHash(shaofpubkey);
+
+            byte[] ripofpubkey = RIPEMD160.ComputeHash(shaofpubkey);
 
             return ByteArrayToString(ripofpubkey);
 
