@@ -7,263 +7,319 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Windows.Forms;
 using NBitcoin;
 
 namespace BWTool
 {
+    /// <summary>
+    /// Parallelized brainwallet miner.
+    /// - Reads the lookup address list into a HashSet (read-only afterward).
+    /// - Streams the passphrase file in batches.
+    /// - Splits per the configured separator.
+    /// - Processes each batch with Parallel.ForEach.
+    /// - Uses a single writer thread (BlockingCollection) to append matches to keys.txt.
+    /// - Uses Interlocked for counters.
+    /// </summary>
     class BrainwalletMiner : IDisposable
     {
-        private readonly ReaderWriterLockSlim _lock = new ReaderWriterLockSlim(LockRecursionPolicy.SupportsRecursion);
-        StreamReader streamReaderOfPassphraseFile;
-        StreamReader streamReaderOfAddressesFile;
-        private int foundKeyCount = 0;
-        HashSet<string> lookupSet;
-        string pathOfPassphraseFile;
-        string pathOfLookupAddresses;
-        char separator;
-        bool compressed = false;
-        int countOfSha256Operation;
-        CancellationTokenSource cancellationToken;
-        Stopwatch stopwatch = new Stopwatch();
+        // config / inputs
+        private readonly string pathOfPassphraseFile;
+        private readonly string pathOfLookupAddresses;
+        private readonly char separator;
+        private readonly bool compressed;
+        private readonly int countOfSha256Operation;
+
+        // state
+        private StreamReader streamReaderOfPassphraseFile;
+        private StreamReader streamReaderOfAddressesFile;
+        private HashSet<string> lookupSet;
+        private readonly CancellationTokenSource cancellationToken;
+        private readonly Stopwatch stopwatch = new Stopwatch();
+        private readonly ParallelOptions _po;
+        private volatile int _foundKeyCount;
+
+        // single writer for output
         private readonly BlockingCollection<string> _foundLines = new BlockingCollection<string>(10_000);
         private Task _writerTask;
-        private readonly object _fileInitLock = new object();
-        private readonly ParallelOptions _po;
-        private long _foundKeyCount; // make this long for Interlocked
 
-
-
-        public BrainwalletMiner(string pathOfPassphraseFile, string pathOfLookupAddresses, bool compressed, char separator, int countOfSha256Operation)
+        public BrainwalletMiner(string pathOfPassphraseFile,
+                                string pathOfLookupAddresses,
+                                bool compressed,
+                                char separator,
+                                int countOfSha256Operation)
         {
+            this.pathOfPassphraseFile = pathOfPassphraseFile ?? throw new ArgumentNullException(nameof(pathOfPassphraseFile));
+            this.pathOfLookupAddresses = pathOfLookupAddresses ?? throw new ArgumentNullException(nameof(pathOfLookupAddresses));
+            this.compressed = compressed;
+            this.separator = separator;
+            this.countOfSha256Operation = countOfSha256Operation;
+
             streamReaderOfPassphraseFile = new StreamReader(pathOfPassphraseFile);
             streamReaderOfAddressesFile = new StreamReader(pathOfLookupAddresses);
-            this.compressed = compressed;
+
             cancellationToken = new CancellationTokenSource();
-            this.separator = separator;
-            this.pathOfLookupAddresses = pathOfLookupAddresses;
-            this.pathOfPassphraseFile = pathOfPassphraseFile;
-            this.countOfSha256Operation = countOfSha256Operation;
+
             _po = new ParallelOptions
             {
-                CancellationToken = cancellationToken.Token,
+                // Don't pass the token here to avoid OperationCanceledException bubbling from Parallel.ForEach.
+                // We will check token cooperatively inside the loop.
                 MaxDegreeOfParallelism = Environment.ProcessorCount
             };
+        }
 
+        public void Start()
+        {
+            ProcessPasswordList();
+        }
+
+        public void Stop()
+        {
+            try { cancellationToken.Cancel(); } catch (ObjectDisposedException) { /* no-op */ }
         }
 
         public void Dispose()
         {
-            streamReaderOfPassphraseFile.Dispose();
-            streamReaderOfAddressesFile.Dispose();
-            cancellationToken.Dispose();
-            _lock.Dispose();
-
+            try { streamReaderOfPassphraseFile?.Dispose(); } catch { }
+            try { streamReaderOfAddressesFile?.Dispose(); } catch { }
+            try { cancellationToken?.Dispose(); } catch { }
+            try { _foundLines?.Dispose(); } catch { }
         }
-        public void Start()
+
+        private void StartWriter()
         {
+            _writerTask = Task.Factory.StartNew(() =>
+            {
+                using var fs = new FileStream("keys.txt", FileMode.Append, FileAccess.Write, FileShare.Read);
+                using var sw = new StreamWriter(fs);
 
-            ProcessPasswordList();
-
+                foreach (var line in _foundLines.GetConsumingEnumerable(cancellationToken.Token))
+                {
+                    sw.WriteLine(line);
+                }
+            }, TaskCreationOptions.LongRunning);
         }
-        public void Stop()
+
+        private void CompleteWriter()
         {
             try
             {
-                cancellationToken.Cancel();
+                _foundLines.CompleteAdding();
+                _writerTask?.Wait();
             }
-            catch (ObjectDisposedException)
+            catch (OperationCanceledException) { /* graceful stop */ }
+            catch (AggregateException ae) when (ae.InnerExceptions.All(e => e is OperationCanceledException))
             {
-
-
+                /* graceful stop */
             }
-
-
         }
+
         private void ProcessPasswordList()
         {
             MinerInfo.minerStillRunning = true;
             stopwatch.Start();
+
             Task.Factory.StartNew(() =>
             {
-                MinerInfo.minerThreadInfo = "";
-                MinerInfo.minerThreadInfo = "Reading file length...";
-                using (StreamReader streamReader = new StreamReader(pathOfPassphraseFile))
+                try
                 {
-                    while (streamReader.Peek() != -1 && !cancellationToken.IsCancellationRequested)
+                    MinerInfo.minerThreadInfo = "Reading file length...";
+                    // Count lines in passphrase file
+                    using (var reader = new StreamReader(pathOfPassphraseFile))
                     {
-                        streamReader.ReadLine();
-                        MinerInfo.lengthOfJob++;
-                    }
-                }
-                int lookupAddresscount = 0;
-                using (StreamReader sr = new StreamReader(pathOfLookupAddresses))
-                {
-                    while (sr.Peek() != -1)
-                    {
-                        sr.ReadLine();
-                        lookupAddresscount++;
-                    }
-
-                }
-                MinerInfo.minerThreadInfo = "";
-                MinerInfo.minerThreadInfo = "Reading file done,generating hashset...";
-                lookupSet = new HashSet<string>(lookupAddresscount);
-                using (StreamReader sr = new StreamReader(pathOfLookupAddresses))
-                {
-                    while (sr.Peek() != -1)
-                    {
-                        lookupSet.Add(sr.ReadLine());
-
-                    }
-                }
-                //  lookupAdresses = new HashSet<string>(File.ReadAllLines(pathOfLookupAddresses));
-                MinerInfo.minerThreadInfo = "";
-                MinerInfo.minerThreadInfo = "Generating hashset done, mining...";
-                using (StreamReader streamReader = new StreamReader(pathOfPassphraseFile))
-                {
-
-                    List<string> lines = new List<string>((int)MinerInfo.lengthOfJob / 100);
-                    while (streamReader.Peek() != -1 && !cancellationToken.IsCancellationRequested)
-                    {
-                        lines.Add(streamReader.ReadLine());
-                        MinerInfo.currentlyProcessed++;
-                        if (MinerInfo.currentlyProcessed % (MinerInfo.lengthOfJob / 100) == 0)
+                        long lines = 0;
+                        while (reader.Peek() != -1 && !cancellationToken.IsCancellationRequested)
                         {
-                            ParseLines(lines);
-                            lines.Clear();
-
+                            reader.ReadLine();
+                            lines++;
                         }
-                        if (MinerInfo.currentlyProcessed == MinerInfo.lengthOfJob)
+                        MinerInfo.lengthOfJob = lines;
+                    }
+
+                    // Build lookup set
+                    MinerInfo.minerThreadInfo = "Reading address list...";
+                    int lookupAddresscount = 0;
+                    using (var sr = new StreamReader(pathOfLookupAddresses))
+                    {
+                        while (sr.Peek() != -1) { sr.ReadLine(); lookupAddresscount++; }
+                    }
+
+                    MinerInfo.minerThreadInfo = "Generating HashSet...";
+                    lookupSet = new HashSet<string>(lookupAddresscount);
+                    using (var sr = new StreamReader(pathOfLookupAddresses))
+                    {
+                        string line;
+                        while ((line = sr.ReadLine()) != null)
                         {
-                            ParseLines(lines);
+                            if (line.Length > 0) lookupSet.Add(line);
                         }
                     }
+
+                    MinerInfo.minerThreadInfo = "Mining...";
+                    StartWriter();
+
+                    var batchSizeDiv = Math.Max(1L, MinerInfo.lengthOfJob / 100L); // avoid div by zero on small files
+                    var batch = new List<string>(checked((int)Math.Min(int.MaxValue, batchSizeDiv)));
+
+                    using (var reader = new StreamReader(pathOfPassphraseFile))
+                    {
+                        string line;
+                        while (!cancellationToken.IsCancellationRequested && (line = reader.ReadLine()) != null)
+                        {
+                            batch.Add(line);
+                            Interlocked.Increment(ref MinerInfo.currentlyProcessed);
+
+                            if (MinerInfo.currentlyProcessed % batchSizeDiv == 0)
+                            {
+                                ParseLines(batch);
+                                batch.Clear();
+                            }
+                        }
+
+                        if (batch.Count > 0) ParseLines(batch);
+                    }
+                }
+                finally
+                {
+                    CompleteWriter();
                     stopwatch.Stop();
-                    MinerInfo.minerThreadResults = $"{Environment.NewLine}Found keys: {foundKeyCount}, ckecked passwords: {MinerInfo.countOfTriedKeys} {Environment.NewLine}Additional data: - password file length: {MinerInfo.lengthOfJob} line, elapsed time: {stopwatch.Elapsed}, keys/second: {MinerInfo.countOfTriedKeys / stopwatch.Elapsed.TotalSeconds}";
-                    Dispose();
+
+                    var elapsed = stopwatch.Elapsed.TotalSeconds;
+                    var rate = elapsed > 0 ? (MinerInfo.countOfTriedKeys / elapsed) : 0.0;
+
+                    MinerInfo.minerThreadResults =
+                        $"{Environment.NewLine}Found keys: {_foundKeyCount}, ckecked passwords: {MinerInfo.countOfTriedKeys} " +
+                        $"{Environment.NewLine}Additional data: - password file length: {MinerInfo.lengthOfJob} line, " +
+                        $"elapsed time: {stopwatch.Elapsed}, keys/second: {rate}";
+
                     MinerInfo.minerStillRunning = false;
+                    Dispose();
                 }
-
-
-
-
-
-            }
-            , TaskCreationOptions.LongRunning);
+            }, TaskCreationOptions.LongRunning);
         }
-        private  void ParseLines(List<string> textLines)
+
+        private void ParseLines(List<string> textLines)
         {
-            //Splitting here on user selected separator
+            if (textLines == null || textLines.Count == 0) return;
+
+            // If separator is not Enter, we split across lines and carry tails
             if (separator != '\r')
             {
-                List<string> splittedList = new List<string>(1000);
-                StringBuilder localStringBuilder = new StringBuilder(1000);
+                var splittedList = new List<string>(textLines.Count * 2);
+                var local = new StringBuilder(1024);
+
                 for (int i = 0; i < textLines.Count; i++)
                 {
-                    //if there is a separator, the preceding part of line splitted and added to list, the last one will be part of the next line, appended to stringbuilder
-                    if (textLines[i].Contains(separator))
+                    var line = textLines[i];
+                    if (line.IndexOf(separator) >= 0)
                     {
-                        var splittedString = textLines[i].Split(new[] { separator }, StringSplitOptions.RemoveEmptyEntries);
-                        for (int j = 0; j < splittedString.Length - 1; j++)
+                        var parts = line.Split(new[] { separator }, StringSplitOptions.RemoveEmptyEntries);
+
+                        // all but the last part complete a token
+                        for (int j = 0; j < parts.Length - 1; j++)
                         {
-                            localStringBuilder.Append(splittedString[j]);
-                            splittedList.Add(localStringBuilder.ToString());
-                            localStringBuilder.Clear(); ;
+                            local.Append(parts[j]);
+                            var token = local.ToString();
+                            if (token.Length > 0) splittedList.Add(token);
+                            local.Clear();
                         }
-                        if (splittedString.Length == 1)
+
+                        if (parts.Length == 1)
                         {
-                            localStringBuilder.Append(splittedString[0]);
-                            splittedList.Add(localStringBuilder.ToString());
-                            localStringBuilder.Clear();
+                            local.Append(parts[0]);
+                            var tokenSingle = local.ToString();
+                            if (tokenSingle.Length > 0) splittedList.Add(tokenSingle);
+                            local.Clear();
                         }
                         else
                         {
-                            localStringBuilder.Append(splittedString.Last() + " ");
+                            // keep last part as carryover (with space instead of newline)
+                            local.Append(parts.Last());
+                            local.Append(' ');
                         }
-
                     }
                     else
                     {
-                        //Appending while there is a separator, the space is instead of new line
-                        localStringBuilder.Append(textLines[i] + " ");
+                        // no separator in this line; append and keep carrying
+                        local.Append(line);
+                        local.Append(' ');
                     }
                 }
-                 LookupKeys(splittedList);
+
+                // anything in the builder at the very end is an incomplete token; drop it
+
+                LookupKeysParallel(splittedList);
             }
             else
             {
-                LookupKeys(textLines); ;
+                // Enter-separated; each line is a token as-is
+                LookupKeysParallel(textLines);
             }
         }
-        private  void LookupKeys(List<string> lookupAdressesList)
+
+        private void LookupKeysParallel(List<string> candidates)
         {
-            for (int i = 0; i < lookupAdressesList.Count; i++)
+            if (candidates == null || candidates.Count == 0) return;
+
+            try
             {
-                MinerInfo.countOfTriedKeys++;
-                string address = GetAddress(lookupAdressesList[i], compressed, countOfSha256Operation);
-                if (lookupSet.Contains(address))
+                Parallel.ForEach(candidates, _po, pw =>
                 {
-                    MinerInfo.minerThreadInfo = $"Found key!!!! Password: {lookupAdressesList[i]}, address: {address}";
-                    foundKeyCount++;
-                        StreamWriter streamWriter = new StreamWriter("keys.txt", true);
+                    if (cancellationToken.IsCancellationRequested) return;
 
-                        string key = lookupAdressesList[i] + " " + address;
-                        streamWriter.WriteLine(key);
-                        streamWriter.Flush();
-                        streamWriter.Close();
+                    Interlocked.Increment(ref MinerInfo.countOfTriedKeys);
 
+                    var address = GetAddress(pw, compressed, countOfSha256Operation);
+                    if (address != "error" && lookupSet.Contains(address))
+                    {
+                        Interlocked.Increment(ref _foundKeyCount);
+                        MinerInfo.minerThreadInfo = $"Found key!!!! Password: {pw}, address: {address}";
 
-                }
+                        // enqueue for the single writer
+                        try { _foundLines.Add($"{pw} {address}", cancellationToken.Token); }
+                        catch (OperationCanceledException) { /* shutting down */ }
+                    }
+                });
+            }
+            catch (OperationCanceledException)
+            {
+                // cooperative cancel
             }
         }
+
         private string GetAddress(string stringData, bool isCompressedKey = false, int sha256 = 1)
         {
             try
             {
-                byte[] data;
-                if (sha256 < 1)
-                {
-                    throw new InvalidOperationException();
-                }
-                if (sha256 == 1)
-                {
-                    data = Casascius.Bitcoin.Util.ComputeSha256(stringData);
-                }
-                else
-                {
-                    data = getHashSha256(stringData, sha256);
-                }
+                if (sha256 < 1) throw new InvalidOperationException();
 
-                var privateKey = isCompressedKey ? new Key(data, fCompressedIn: true) : new Key(data, fCompressedIn: false);
+                byte[] data = sha256 == 1
+                    ? Casascius.Bitcoin.Util.ComputeSha256(stringData)
+                    : GetHashSha256Deep(stringData, sha256);
+
+                var privateKey = new Key(data, fCompressedIn: isCompressedKey);
                 return privateKey.PubKey.GetAddress(ScriptPubKeyType.Legacy, Network.Main).ToString();
-                // var bitcoinPrivateKey = privateKey.GetWif(Network.Main);
-                //var bitcoinAddress = bitcoinPrivateKey.GetAddress(ScriptPubKeyType.Legacy).ToString();
-                //return bitcoinAddress;
             }
-            catch (Exception)
+            catch
             {
-                return ("error");
+                return "error";
             }
         }
-        private static byte[] getHashSha256(string randomString, int deepOfSha = 1)
+
+        private static byte[] GetHashSha256Deep(string input, int depth = 1)
         {
-            string returnedHash = randomString;
-            System.Security.Cryptography.SHA256Managed crypt = new System.Security.Cryptography.SHA256Managed();
-            System.Text.StringBuilder localHashBuilder = new System.Text.StringBuilder();
-            for (int i = 0; i < deepOfSha - 1; i++)// Casascius.Bitcoin.Util.ComputeSha256 computes one level of sha256 hash
+            string current = input;
+            using var crypt = System.Security.Cryptography.SHA256.Create();
+            var sb = new StringBuilder();
+
+            for (int i = 0; i < depth - 1; i++)
             {
-                byte[] crypto = crypt.ComputeHash(Encoding.UTF8.GetBytes(returnedHash), 0, Encoding.UTF8.GetByteCount(returnedHash));
-                foreach (byte theByte in crypto)
-                {
-                    localHashBuilder.Append(theByte.ToString("x2"));
-                }
-                returnedHash = localHashBuilder.ToString();
-                localHashBuilder.Clear();
+                byte[] hash = crypt.ComputeHash(Encoding.UTF8.GetBytes(current));
+                foreach (byte b in hash) sb.Append(b.ToString("x2"));
+                current = sb.ToString();
+                sb.Clear();
             }
 
-            return Casascius.Bitcoin.Util.ComputeSha256(returnedHash);
+            return Casascius.Bitcoin.Util.ComputeSha256(current);
         }
-
     }
 }
